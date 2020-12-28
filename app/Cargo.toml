@@ -5,3 +5,16 @@ authors = ["Leon Tan <leon.arian.tan@gmail.com>"]
 edition = "2018"
 
 [dependencies]
+yew = "0.17.4"
+algo = { path = "../algo" }
+
+
+[dependencies.web-sys]
+version = "0.3.46"
+default-features = false
+features = [
+    "console",
+    "Document",
+    "HtmlInputElement",
+    "Window",
+]
