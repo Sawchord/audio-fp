@@ -1,6 +1,12 @@
 #![recursion_limit = "256"]
+#![allow(dead_code)]
+
+mod display;
+mod pipeline;
 
 use yew::prelude::*;
+
+type AppResult<T> = Result<T, Box<dyn std::error::Error>>;
 
 pub struct Model {}
 
