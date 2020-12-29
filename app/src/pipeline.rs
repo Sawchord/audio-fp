@@ -5,7 +5,7 @@ use std::rc::Rc;
 use wasm_bindgen::{closure::Closure, JsCast, JsValue};
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{
-   AudioContext, AudioProcessingEvent, MediaStream, MediaStreamAudioSourceNode,
+   AudioContext, AudioNode, AudioProcessingEvent, MediaStream, MediaStreamAudioSourceNode,
    MediaStreamAudioSourceOptions, MediaStreamConstraints, ScriptProcessorNode,
 };
 
@@ -15,6 +15,7 @@ pub struct Pipeline(Rc<RefCell<PipelineInner>>);
 pub struct PipelineInner {
    audio_context: AudioContext,
    script_processor: ScriptProcessorNode,
+   proc_pipeline: Option<AudioNode>,
    frequencer: Frequencer,
 }
 
@@ -22,18 +23,19 @@ impl Pipeline {
    pub fn new() -> AppResult<Self> {
       let audio_context = AudioContext::new().map_err(|_| "failed to establish audio context")?;
       let script_processor = audio_context
-         .create_script_processor_with_buffer_size(1024)
+         .create_script_processor_with_buffer_size(crate::STEP_SIZE as u32)
          .map_err(|_| "failed to set up processing nodes")?;
 
       Ok(Self(Rc::new(RefCell::new(PipelineInner {
          audio_context,
          script_processor,
+         proc_pipeline: None,
          frequencer: Frequencer::new(48000, 4096, 1024).unwrap(),
       }))))
    }
 
    pub async fn start(&self) -> AppResult<()> {
-      let pipeline = self.0.borrow();
+      let mut pipeline = self.0.borrow_mut();
 
       // Grab the media devices
       let media_devices = web_sys::window()
@@ -58,9 +60,10 @@ impl Pipeline {
       .map_err(|_| "failed to initialize audio source")?;
 
       // Configure the audio callback
-      let audio_callback = Closure::wrap(
-         Box::new(|_audio_processing_event| todo!()) as Box<dyn Fn(AudioProcessingEvent)>
-      );
+      let mut self_clone = self.clone();
+      let audio_callback =
+         Closure::wrap(Box::new(move |event| self_clone.process_audio_event(event))
+            as Box<dyn FnMut(AudioProcessingEvent)>);
 
       // Set the audio callback into our processing node
       pipeline
@@ -69,11 +72,15 @@ impl Pipeline {
       audio_callback.forget();
 
       // connect audio src into the processing node
-      let _processing_pipeline = audio_src
+      let processing_pipeline = audio_src
          .connect_with_audio_node(&pipeline.script_processor)
-         .map_err(|_| "failed to set up pipeline");
-      // TODO: Do we need to store the processong pipeline?
+         .map_err(|_| "failed to set up pipeline")?;
+      pipeline.proc_pipeline = Some(processing_pipeline);
 
       Ok(())
+   }
+
+   fn process_audio_event(&mut self, _event: AudioProcessingEvent) {
+      todo!()
    }
 }

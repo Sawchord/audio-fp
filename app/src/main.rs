@@ -6,6 +6,8 @@ mod pipeline;
 
 use yew::prelude::*;
 
+pub const STEP_SIZE: usize = 1000;
+
 type AppResult<T> = Result<T, Box<dyn std::error::Error>>;
 
 pub struct Model {}
