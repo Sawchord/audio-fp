@@ -1,13 +1,15 @@
-use crate::AppResult;
 use algo::frequencer::Frequencer;
 use core::cell::RefCell;
-use std::rc::Rc;
+use std::{rc::Rc, sync::mpsc::Sender};
 use wasm_bindgen::{closure::Closure, JsCast, JsValue};
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{
    AudioContext, AudioNode, AudioProcessingEvent, MediaStream, MediaStreamAudioSourceNode,
    MediaStreamAudioSourceOptions, MediaStreamConstraints, ScriptProcessorNode,
 };
+
+use crate::display::DisplayMessage;
+use crate::{js_err, AppResult};
 
 #[derive(Clone)]
 pub struct Pipeline(Rc<RefCell<PipelineInner>>);
@@ -17,20 +19,23 @@ pub struct PipelineInner {
    script_processor: ScriptProcessorNode,
    proc_pipeline: Option<AudioNode>,
    frequencer: Frequencer,
+   display: Sender<DisplayMessage>,
 }
 
 impl Pipeline {
-   pub fn new() -> AppResult<Self> {
-      let audio_context = AudioContext::new().map_err(|_| "failed to establish audio context")?;
+   pub fn new(display: Sender<DisplayMessage>) -> AppResult<Self> {
+      let audio_context =
+         AudioContext::new().map_err(|val| js_err(val, &"failed to establish audio context"))?;
       let script_processor = audio_context
          .create_script_processor_with_buffer_size(crate::STEP_SIZE as u32)
-         .map_err(|_| "failed to set up processing nodes")?;
+         .map_err(|val| js_err(val, &"failed to set up processing nodes"))?;
 
       Ok(Self(Rc::new(RefCell::new(PipelineInner {
          audio_context,
          script_processor,
          proc_pipeline: None,
          frequencer: Frequencer::new(48000, 4096, 1024).unwrap(),
+         display,
       }))))
    }
 
@@ -42,7 +47,7 @@ impl Pipeline {
          .unwrap()
          .navigator()
          .media_devices()
-         .map_err(|_| "failed to grab media devices")?;
+         .map_err(|val| js_err(val, &"failed to grab media devices"))?;
 
       // Request audio access
       let media_stream = JsFuture::from(
@@ -51,13 +56,13 @@ impl Pipeline {
             .unwrap(),
       )
       .await
-      .map_err(|_| "failed to acquire media stream")?;
+      .map_err(|val| js_err(val, &"failed to acquire media stream"))?;
 
       let audio_src = MediaStreamAudioSourceNode::new(
          &pipeline.audio_context,
          &MediaStreamAudioSourceOptions::new(&MediaStream::unchecked_from_js(media_stream)),
       )
-      .map_err(|_| "failed to initialize audio source")?;
+      .map_err(|val| js_err(val, &"failed to initialize audio source"))?;
 
       // Configure the audio callback
       let mut self_clone = self.clone();
@@ -74,13 +79,33 @@ impl Pipeline {
       // connect audio src into the processing node
       let processing_pipeline = audio_src
          .connect_with_audio_node(&pipeline.script_processor)
-         .map_err(|_| "failed to set up pipeline")?;
+         .map_err(|val| js_err(val, &"failed to set up pipeline"))?;
       pipeline.proc_pipeline = Some(processing_pipeline);
 
       Ok(())
    }
 
-   fn process_audio_event(&mut self, _event: AudioProcessingEvent) {
-      todo!()
+   fn process_audio_event(&mut self, event: AudioProcessingEvent) {
+      let mut pipeline = self.0.borrow_mut();
+      // Pull the audio out of the audio event
+      let audio = event
+         .input_buffer()
+         .unwrap()
+         .get_channel_data(0)
+         .unwrap()
+         .iter()
+         .map(|x| *x as f64)
+         .collect::<Vec<f64>>();
+      assert_eq!(audio.len(), crate::STEP_SIZE);
+
+      // Feed the data into the frequencer
+      let wavelet = pipeline.frequencer.feed_audio(&audio);
+      // Send the wavelet to the display
+      pipeline
+         .display
+         .send(DisplayMessage::Wavelet(wavelet))
+         .unwrap();
+
+      // TODO: Further processing of the data
    }
 }

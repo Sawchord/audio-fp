@@ -6,14 +6,17 @@ edition = "2018"
 
 [dependencies]
 yew = "0.17.4"
+yewtil = "0.3.2"
 algo = { path = "../algo" }
 wasm-bindgen = "0.2.69"
 wasm-bindgen-futures = "0.4.19"
+js-sys = "0.3.46"
 
 [dependencies.web-sys]
 version = "0.3.46"
 default-features = false
 features = [
+    "AudioBuffer",
     "AudioContext",
     "AudioProcessingEvent",
     "CanvasRenderingContext2d",
