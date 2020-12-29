@@ -16,9 +16,12 @@ default-features = false
 features = [
     "AudioContext",
     "AudioProcessingEvent",
+    "CanvasRenderingContext2d",
     "console",
     "Document",
+    "HtmlCanvasElement",
     "HtmlInputElement",
+    "ImageData",
     "MediaDevices",
     "MediaStream",
     "MediaStreamAudioSourceNode",

@@ -1,6 +1,8 @@
 #![recursion_limit = "256"]
 #![allow(dead_code)]
 
+extern crate alloc;
+
 mod display;
 mod pipeline;
 
