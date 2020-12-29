@@ -103,15 +103,15 @@ impl DisplayState {
 fn get_canvas(canvas_name: &str) -> AppResult<CanvasRenderingContext2d> {
    let document = web_sys::window().unwrap().document().unwrap();
    let canvas = document
-      .get_element_by_id("canvas")
-      .ok_or(format!("failed to grep canvas element {}", canvas_name))?;
+      .get_element_by_id(canvas_name)
+      .ok_or(format!("failed to grab canvas element {}", canvas_name))?;
 
    let canvas: HtmlCanvasElement = canvas
       .dyn_into::<HtmlCanvasElement>()
       .map_err(|_| "failed to convert element canvas element")?;
 
    let context = canvas
-      .get_context(canvas_name)
+      .get_context("2d")
       .unwrap()
       .unwrap()
       .dyn_into::<CanvasRenderingContext2d>()
