@@ -52,8 +52,8 @@ impl Component for Model {
     fn create(_props: Self::Properties, link: ComponentLink<Self>) -> Self {
         let display = DisplayState::new(DisplayConfig {
             canvas_name: "display".to_string(),
-            display_size: 1200,
-            display_height: 800,
+            display_size: 600,
+            display_height: 400,
         });
 
         let pipeline = Pipeline::new(display.sender()).unwrap();

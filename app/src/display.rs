@@ -61,10 +61,11 @@ impl DisplayState {
                .unwrap_or(0.0);
 
             // Clamp down the red value
-            let red = (255.0 * amplitude) as usize;
-            let red = if red < 255 { red as u8 } else { 255 };
+            // Fix 1.0 at 127 and infinity at 255
+            let red = 255f64 * (2f64.powf(-amplitude)) * (2f64.powf(amplitude) - 1f64);
+            let red = if red < 255f64 { red as u8 } else { 255 };
 
-            let img_index = 4 * (x + y * self.config.display_height);
+            let img_index = 4 * (x + y * self.config.display_size);
             // Set red and alpha value
             img_data[img_index] = red;
             img_data[img_index + 3] = 255;
@@ -78,7 +79,7 @@ impl DisplayState {
       )
       .unwrap();
 
-      let context = get_canvas(&self.config.canvas_name).unwrap();
+      let context = self.get_canvas().unwrap();
       context.put_image_data(&img_data, 0.0, 0.0).unwrap();
    }
 
@@ -98,24 +99,31 @@ impl DisplayState {
          self.wavelets.pop_front();
       }
    }
-}
 
-fn get_canvas(canvas_name: &str) -> AppResult<CanvasRenderingContext2d> {
-   let document = web_sys::window().unwrap().document().unwrap();
-   let canvas = document
-      .get_element_by_id(canvas_name)
-      .ok_or(format!("failed to grab canvas element {}", canvas_name))?;
+   fn get_canvas(&self) -> AppResult<CanvasRenderingContext2d> {
+      // Get the canvas html element
+      let document = web_sys::window().unwrap().document().unwrap();
+      let canvas = document
+         .get_element_by_id(&self.config.canvas_name)
+         .ok_or(format!(
+            "failed to grab canvas element {}",
+            self.config.canvas_name
+         ))?;
+      let canvas: HtmlCanvasElement = canvas
+         .dyn_into::<HtmlCanvasElement>()
+         .map_err(|_| "failed to convert element canvas element")?;
 
-   let canvas: HtmlCanvasElement = canvas
-      .dyn_into::<HtmlCanvasElement>()
-      .map_err(|_| "failed to convert element canvas element")?;
+      // Set the size correctly
+      canvas.set_width(self.config.display_size as u32);
+      canvas.set_height(self.config.display_height as u32);
 
-   let context = canvas
-      .get_context("2d")
-      .unwrap()
-      .unwrap()
-      .dyn_into::<CanvasRenderingContext2d>()
-      .unwrap();
-
-   Ok(context)
+      // Get the canvas context to draw on
+      let context = canvas
+         .get_context("2d")
+         .unwrap()
+         .unwrap()
+         .dyn_into::<CanvasRenderingContext2d>()
+         .unwrap();
+      Ok(context)
+   }
 }
