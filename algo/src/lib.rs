@@ -1,5 +1,6 @@
 extern crate alloc;
 
+pub mod feature;
 pub mod frequencer;
 
 #[derive(Debug, Clone)]
@@ -63,10 +64,9 @@ impl Wavelet {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
-    }
+#[derive(Debug, Clone, PartialEq)]
+pub struct FrequencyFeature {
+    pub time: usize,
+    pub frequency: f64,
+    pub amplitude: f64,
 }
