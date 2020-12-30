@@ -1,4 +1,4 @@
-use algo::frequencer::Frequencer;
+use algo::{feature::FeatureFinder, frequencer::Frequencer};
 use core::cell::RefCell;
 use std::{rc::Rc, sync::mpsc::Sender};
 use wasm_bindgen::{closure::Closure, JsCast, JsValue};
@@ -19,6 +19,7 @@ pub struct PipelineInner {
    script_processor: ScriptProcessorNode,
    proc_pipeline: Option<AudioNode>,
    frequencer: Frequencer,
+   feature_finder: FeatureFinder,
    display: Sender<DisplayMessage>,
 }
 
@@ -34,7 +35,8 @@ impl Pipeline {
          audio_context,
          script_processor,
          proc_pipeline: None,
-         frequencer: Frequencer::new(48000, 4096, 1024).unwrap(),
+         frequencer: Frequencer::new(48000, crate::BLOCK_SIZE, crate::STEP_SIZE).unwrap(),
+         feature_finder: FeatureFinder::new(crate::BLOCK_SIZE, crate::T_SPAN),
          display,
       }))))
    }
@@ -103,7 +105,13 @@ impl Pipeline {
       // Send the wavelet to the display
       pipeline
          .display
-         .send(DisplayMessage::Wavelet(wavelet))
+         .send(DisplayMessage::Wavelet(wavelet.clone()))
+         .unwrap();
+
+      let features = pipeline.feature_finder.process(wavelet);
+      pipeline
+         .display
+         .send(DisplayMessage::Feature(features))
          .unwrap();
 
       // TODO: Further processing of the data

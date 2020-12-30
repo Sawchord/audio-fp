@@ -18,7 +18,9 @@ use crate::{
     pipeline::Pipeline,
 };
 
+pub const BLOCK_SIZE: usize = 4096;
 pub const STEP_SIZE: usize = 1024;
+pub const T_SPAN: usize = 10;
 
 type AppResult<T> = Result<T, Box<dyn std::error::Error>>;
 

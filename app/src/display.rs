@@ -1,6 +1,9 @@
-use algo::Wavelet;
+use algo::{FrequencyFeature, Wavelet};
 use alloc::collections::VecDeque;
-use std::sync::mpsc::{channel, Receiver, Sender};
+use std::{
+   collections::HashMap,
+   sync::mpsc::{channel, Receiver, Sender},
+};
 use wasm_bindgen::{Clamped, JsCast};
 use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement, ImageData};
 
@@ -9,6 +12,7 @@ use crate::AppResult;
 #[derive(Debug, Clone)]
 pub enum DisplayMessage {
    Wavelet(Wavelet),
+   Feature(Vec<FrequencyFeature>),
 }
 
 #[derive(Debug, Clone)]
@@ -25,6 +29,7 @@ pub struct DisplayState {
    rx: Receiver<DisplayMessage>,
    time: usize,
    wavelets: VecDeque<Wavelet>,
+   features: HashMap<usize, FrequencyFeature>,
 }
 
 impl DisplayState {
@@ -37,6 +42,7 @@ impl DisplayState {
          rx,
          time: 0,
          wavelets: VecDeque::new(),
+         features: HashMap::new(),
       }
    }
 
@@ -72,6 +78,17 @@ impl DisplayState {
          }
       }
 
+      // Paint features green
+      for (time, feature) in self.features.iter() {
+         let x = self.config.display_size - (self.time - time);
+         let y = feature.bin_index * self.config.display_height / (crate::BLOCK_SIZE / 2);
+         let img_index = 4 * (x + y * self.config.display_size);
+
+         // Paint the pixel under the feature green
+         img_data[img_index] = 0;
+         img_data[img_index + 1] = 255;
+      }
+
       let img_data = ImageData::new_with_u8_clamped_array_and_sh(
          Clamped(&mut img_data[..]),
          self.config.display_size as u32,
@@ -91,6 +108,11 @@ impl DisplayState {
                self.time += 1;
                self.wavelets.push_back(wavelet);
             }
+            DisplayMessage::Feature(features) => {
+               for feature in features {
+                  self.features.insert(feature.time, feature);
+               }
+            }
          }
       }
 
@@ -98,6 +120,10 @@ impl DisplayState {
       while self.wavelets.len() > self.config.display_size {
          self.wavelets.pop_front();
       }
+
+      // Keep only features that are not outdated
+      let outdated = self.time - self.config.display_size;
+      self.features.retain(|time, _| *time > outdated);
    }
 
    fn get_canvas(&self) -> AppResult<CanvasRenderingContext2d> {
