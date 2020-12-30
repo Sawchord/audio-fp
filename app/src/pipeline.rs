@@ -31,11 +31,17 @@ impl Pipeline {
          .create_script_processor_with_buffer_size(crate::STEP_SIZE as u32)
          .map_err(|val| js_err(val, &"failed to set up processing nodes"))?;
 
+      let sample_rate = audio_context.sample_rate() as u32 as usize;
+      web_sys::console::log_1(&JsValue::from_str(&format!(
+         "Playback at samplerate {}",
+         sample_rate
+      )));
+
       Ok(Self(Rc::new(RefCell::new(PipelineInner {
          audio_context,
          script_processor,
          proc_pipeline: None,
-         frequencer: Frequencer::new(48000, crate::BLOCK_SIZE, crate::STEP_SIZE).unwrap(),
+         frequencer: Frequencer::new(sample_rate, crate::BLOCK_SIZE, crate::STEP_SIZE).unwrap(),
          feature_finder: FeatureFinder::new(crate::BLOCK_SIZE, crate::T_SPAN),
          display,
       }))))
@@ -109,6 +115,7 @@ impl Pipeline {
          .unwrap();
 
       let features = pipeline.feature_finder.process(wavelet);
+
       pipeline
          .display
          .send(DisplayMessage::Feature(features))

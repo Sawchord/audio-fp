@@ -78,15 +78,27 @@ impl DisplayState {
          }
       }
 
+      web_sys::console::log_1(&wasm_bindgen::JsValue::from_str(&format!(
+         "Displaying {} features",
+         self.features.len()
+      )));
+
       // Paint features green
       for (time, feature) in self.features.iter() {
-         let x = self.config.display_size - (self.time - time);
+         let x = match self.time > self.config.display_size {
+            true => self.config.display_size - (self.time - time),
+            false => *time,
+         };
          let y = feature.bin_index * self.config.display_height / (crate::BLOCK_SIZE / 2);
          let img_index = 4 * (x + y * self.config.display_size);
 
          // Paint the pixel under the feature green
+         let amplitude = feature.amplitude;
+         let green = 255f64 * (2f64.powf(-amplitude)) * (2f64.powf(amplitude) - 1f64);
+         let green = if green < 255f64 { green as u8 } else { 255 };
+
          img_data[img_index] = 0;
-         img_data[img_index + 1] = 255;
+         img_data[img_index + 1] = green;
       }
 
       let img_data = ImageData::new_with_u8_clamped_array_and_sh(
@@ -122,8 +134,11 @@ impl DisplayState {
       }
 
       // Keep only features that are not outdated
-      let outdated = self.time - self.config.display_size;
-      self.features.retain(|time, _| *time > outdated);
+      let outdated = match self.time > self.config.display_size {
+         true => self.time - self.config.display_size,
+         false => 0,
+      };
+      self.features.retain(|time, _| *time >= outdated);
    }
 
    fn get_canvas(&self) -> AppResult<CanvasRenderingContext2d> {
