@@ -67,6 +67,7 @@ impl Wavelet {
 #[derive(Debug, Clone, PartialEq)]
 pub struct FrequencyFeature {
     pub time: usize,
+    pub bin_index: usize,
     pub frequency: f64,
     pub amplitude: f64,
 }

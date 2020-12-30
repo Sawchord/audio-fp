@@ -25,11 +25,15 @@ impl FeatureFinder {
    pub fn new(block_size: usize, t_span: usize) -> Self {
       let proto_feature = FrequencyFeature {
          time: 0,
+         bin_index: 0,
          frequency: 0.0,
          amplitude: 0.0,
       };
 
       let proto_line = VecDeque::from(vec![proto_feature.clone(); 2 * t_span]);
+
+      // We only use half the blocksize
+      let block_size = block_size / 2;
 
       Self {
          block_size,
@@ -46,14 +50,16 @@ impl FeatureFinder {
       self.time += 1;
 
       // Update the lines and maxvals with he new wavlet
-      for (max_val, (line, bin)) in self
-         .max_vals
-         .iter_mut()
-         .zip(self.val_window.iter_mut().zip(wavelet.bins.iter()))
-      {
+      for (max_val, (line, (bin_idx, bin))) in self.max_vals.iter_mut().zip(
+         self
+            .val_window
+            .iter_mut()
+            .zip(wavelet.bins.iter().enumerate()),
+      ) {
          // Create a feature out of bin and append to line
          let feature = FrequencyFeature {
             time: self.time,
+            bin_index: bin_idx,
             frequency: bin.frequency,
             amplitude: bin.amplitude,
          };
